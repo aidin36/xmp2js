@@ -107,7 +107,7 @@ const parseBagNode = (node: Element | XMLDomElement): Array<Record<string, strin
 }
 
 // TODO: Here and everywhere else, we should convert HTML codes to string. i.e. &#39; should become '
-const parseTextListNode = (node: Element | XMLDomElement): Record<string, string> => {
+const parseListOfNodes = (node: Element | XMLDomElement): Record<string, string> => {
   // Parses a list like this:
   //   <Iptc4xmpCore:CreatorContactInfo rdf:parseType='Resource'>
   //     <Iptc4xmpCore:CiAdrCity>Creator&#39;s CI: City</Iptc4xmpCore:CiAdrCity>
@@ -126,7 +126,7 @@ const parseTextListNode = (node: Element | XMLDomElement): Record<string, string
   const result: Record<string, string> = {}
 
   filterElementNodes(node.childNodes).forEach((childNode) => {
-    const key = childNode.nodeName
+    const key = childNode.localName
     const textContent = childNode.textContent
     if (key == null || key === '' || textContent == null || textContent === '') {
       console.warn(`Unexpected node. Either 'nodeName' or 'textContent' is empty. Node:\n${childNode}`)
@@ -157,37 +157,31 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
   const childNodes = filterElementNodes(node.childNodes)
 
   if (childNodes.length != 1) {
-    console.warn(
-      `Found an Element node with more than one child. Nodes with multiple children should be inside <rdf:Alt> or <rdf:Bag>. Ignoring.\n${node}`
-    )
-    return result
-  }
+    if (node.getAttribute('rdf:parseType') === 'Resource' && node.childNodes.length > 0) {
+      result[keyName] = parseListOfNodes(node)
+      return result
+    }
+  } else {
+    const childNode = childNodes[0]
+    if (childNode.nodeName == null || childNode.nodeName === '') {
+      console.warn(`Found a child node without a 'nodeName'. Ignoring. Node:\n${childNode}`)
+      return result
+    }
 
-  const childNode = childNodes[0]
-  if (childNode.nodeName == null || childNode.nodeName === '') {
-    console.warn(`Found a child node without a 'nodeName'. Ignoring. Node:\n${childNode}`)
-    return result
-  }
+    if (childNode.nodeName === 'rdf:Alt') {
+      result[keyName] = parseAltNode(childNode)
+      return result
+    }
 
-  if (childNode.nodeName === 'rdf:Alt') {
-    result[keyName] = parseAltNode(childNode)
-    return result
-  }
-
-  if (childNode.nodeName === 'rdf:Bag') {
-    result[keyName] = parseBagNode(childNode)
-    return result
+    if (childNode.nodeName === 'rdf:Bag') {
+      result[keyName] = parseBagNode(childNode)
+      return result
+    }
   }
 
   // TODO: Implement <rdf:Seq>
 
-  // It's not Bag or Alt. Let's check if it's a list of simple text nodes.
-  if (childNode.getAttribute('rdf:parseType') === 'Resource' && childNode.childNodes.length > 0) {
-    result[keyName] = parseTextListNode(childNode)
-    return result
-  }
-
-  console.warn(`Don't know how to parse this type of node: <${childNode.nodeName}> Ignoring.`)
+  console.warn(`Don't know how to parse this type of node: <${node.nodeName}> Ignoring.`)
   return result
 }
 
