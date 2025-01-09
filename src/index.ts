@@ -1,5 +1,7 @@
-export type XMP = Record<string, Record<string, string> | string>
+import { parseXMP, XMP } from './xmpParser'
 
-export const xmp2js = (xmpStr: string): XMP => {}
+export { XMP } from './xmpParser'
 
-export const js2xmp = (jsObject: XMP): string => {}
+export const xmp2js = (xmpStr: string): XMP => parseXMP(xmpStr)
+
+export const js2xmp = (jsObject: XMP): string => ''
