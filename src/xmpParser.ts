@@ -5,7 +5,7 @@ import {
   NodeList as XMLDomNodeList,
 } from '@xmldom/xmldom'
 
-export type XMP = Record<string, Record<string, string> | string | Array<Record<string, string> | string>>
+export type XMP = Record<string, Record<string, string> | string | Array<XMP | string>>
 
 const isElementNode = (node: Node | ChildNode | XMLDomNode): node is Element | XMLDomElement =>
   node.nodeType === node.ELEMENT_NODE && 'hasAttribute' in node && 'localName' in node
@@ -57,7 +57,7 @@ const parseAltNode = (node: Element | XMLDomElement): Record<string, string> => 
   return result
 }
 
-const parseBagNode = (node: Element | XMLDomElement): Array<Record<string, string> | string> => {
+const parseBagNode = (node: Element | XMLDomElement): Array<XMP | string> => {
   // <rdf:Bag> tag contains a list of simple text nodes, or other <rdf:Alt> and <rdf:Bag> tags.
   // Example:
   //    <rdf:Bag>
@@ -90,16 +90,29 @@ const parseBagNode = (node: Element | XMLDomElement): Array<Record<string, strin
   // <rdf:li> tag represetns an item in a list. In the above example, there can be multiple <rdf:li>
   // tags with the similar content.
 
-  let result: Array<Record<string, string> | string> = []
+  let result: Array<XMP | string> = []
 
   filterElementNodes(node.childNodes).forEach((childNode) => {
     if (childNode.nodeName !== 'rdf:li') {
       console.warn(`Expected to see <rdf:li> node under <rdf:Bag>, but found <${childNode.nodeName}>. Ignoring.`)
     } else {
-      const grandChildNodes = filterElementNodes(childNode.childNodes)
-      let listElement = {}
-      grandChildNodes.forEach((grandChildNode) => (listElement = parseNode(listElement, grandChildNode)))
-      result.push(listElement)
+      if (childNode.getAttribute('rdf:parseType') === 'Resource') {
+        result.push(parseNode({}, childNode))
+      } else {
+        // It must be a simple 'li' node. For example:
+        //   <rdf:Bag>
+        //     <rdf:li>011232</rdf:li>
+        //     <rdf:li>012232</rdf:li>
+        //   </rdf:Bag>
+        const textContent = childNode.textContent
+        if (!textContent) {
+          console.warn(
+            `Found a <rdf:li> node without text or 'rdf:parseType = Resource'. Ignoring. Node:\n${childNode}`
+          )
+        } else {
+          result.push(textContent)
+        }
+      }
     }
   })
 
