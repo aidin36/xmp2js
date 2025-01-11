@@ -57,7 +57,7 @@ const parseAltNode = (node: Element | XMLDomElement): Record<string, string> => 
   return result
 }
 
-const parseBagNode = (node: Element | XMLDomElement): Array<XMP | string> => {
+const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMP | string> => {
   // <rdf:Bag> tag contains a list of simple text nodes, or other <rdf:Alt> and <rdf:Bag> tags.
   // Example:
   //    <rdf:Bag>
@@ -94,7 +94,9 @@ const parseBagNode = (node: Element | XMLDomElement): Array<XMP | string> => {
 
   filterElementNodes(node.childNodes).forEach((childNode) => {
     if (childNode.nodeName !== 'rdf:li') {
-      console.warn(`Expected to see <rdf:li> node under <rdf:Bag>, but found <${childNode.nodeName}>. Ignoring.`)
+      console.warn(
+        `Expected to see <rdf:li> node under <rdf:Bag> and <ref:Seq>, but found <${childNode.nodeName}>. Ignoring.`
+      )
     } else {
       if (childNode.getAttribute('rdf:parseType') === 'Resource') {
         result.push(parseNode({}, childNode))
@@ -157,7 +159,10 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
     console.warn(`Found an element node without a name! Ignoring.\n${node}`)
     return result
   }
-  if (node.childNodes.length === 0) {
+
+  const childNodes = filterElementNodes(node.childNodes)
+
+  if (childNodes.length === 0) {
     if (node.textContent == null) {
       console.warn(`Found a node without text or children! Ignoring.\n${node}`)
       return result
@@ -166,8 +171,6 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
     result[keyName] = node.textContent
     return result
   }
-
-  const childNodes = filterElementNodes(node.childNodes)
 
   if (childNodes.length != 1) {
     if (node.getAttribute('rdf:parseType') === 'Resource' && node.childNodes.length > 0) {
@@ -186,13 +189,11 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
       return result
     }
 
-    if (childNode.nodeName === 'rdf:Bag') {
-      result[keyName] = parseBagNode(childNode)
+    if (childNode.nodeName === 'rdf:Bag' || childNode.nodeName === 'rdf:Seq') {
+      result[keyName] = parseBagOrSeqNode(childNode)
       return result
     }
   }
-
-  // TODO: Implement <rdf:Seq>
 
   console.warn(`Don't know how to parse this type of node: <${node.nodeName}> Ignoring.`)
   return result
