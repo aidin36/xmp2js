@@ -5,7 +5,9 @@ import {
   NodeList as XMLDomNodeList,
 } from '@xmldom/xmldom'
 
-export type XMP = Record<string, Record<string, string> | string | Array<XMP | string>>
+type XMPNode = string | Record<string, string> | { [k: string]: XMPNode } | Array<string> | Array<XMPNode>
+
+export type XMP = Record<string, XMPNode>
 
 const isElementNode = (node: Node | ChildNode | XMLDomNode): node is Element | XMLDomElement =>
   node.nodeType === node.ELEMENT_NODE && 'hasAttribute' in node && 'localName' in node
@@ -57,7 +59,7 @@ const parseAltNode = (node: Element | XMLDomElement): Record<string, string> => 
   return result
 }
 
-const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMP | string> => {
+const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMPNode> => {
   // <rdf:Bag> tag contains a list of simple text nodes, or other <rdf:Alt> and <rdf:Bag> tags.
   // Example:
   //    <rdf:Bag>
@@ -90,7 +92,7 @@ const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMP | string> =
   // <rdf:li> tag represetns an item in a list. In the above example, there can be multiple <rdf:li>
   // tags with the similar content.
 
-  let result: Array<XMP | string> = []
+  let result: Array<XMPNode> = []
 
   filterElementNodes(node.childNodes).forEach((childNode) => {
     if (childNode.nodeName !== 'rdf:li') {
@@ -99,7 +101,12 @@ const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMP | string> =
       )
     } else {
       if (childNode.getAttribute('rdf:parseType') === 'Resource') {
-        result.push(parseNode({}, childNode))
+        let parsedLi = {}
+        filterElementNodes(childNode.childNodes).forEach((grandChild) => {
+          // Parsing the nodes inside the <rdf:li> node.
+          parsedLi = parseNode(parsedLi, grandChild)
+        })
+        result.push(parsedLi)
       } else {
         // It must be a simple 'li' node. For example:
         //   <rdf:Bag>
@@ -241,8 +248,6 @@ export const parseXMP = (xmpStr: string) => {
       })
     }
   })
-
-  console.log('parsed XMP=', result)
 
   return result
 }
