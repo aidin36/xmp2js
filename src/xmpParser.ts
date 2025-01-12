@@ -128,38 +128,6 @@ const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMPNode> => {
   return result
 }
 
-// TODO: Here and everywhere else, we should convert HTML codes to string. i.e. &#39; should become '
-const parseListOfNodes = (node: Element | XMLDomElement): Record<string, string> => {
-  // Parses a list like this:
-  //   <Iptc4xmpCore:CreatorContactInfo rdf:parseType='Resource'>
-  //     <Iptc4xmpCore:CiAdrCity>Creator&#39;s CI: City</Iptc4xmpCore:CiAdrCity>
-  //     <Iptc4xmpCore:CiAdrExtadr>Creator&#39;s CI: Address, line 1</Iptc4xmpCore:CiAdrExtadr>
-  //   </Iptc4xmpCore:CreatorContactInfo>
-  //
-  // The result will be:
-  //   {
-  //     "CiAdrCity": "Creator's CI: City"
-  //     "CiAdrExtadr": "Creator's CI: Address, line 1"
-  //   }
-  //
-  // Note that the parent picks up the root node's name, and calls this function like this:
-  //   result[root.nodeName] = parseTextListNode(root)
-
-  const result: Record<string, string> = {}
-
-  filterElementNodes(node.childNodes).forEach((childNode) => {
-    const key = childNode.localName
-    const textContent = childNode.textContent
-    if (key == null || key === '' || textContent == null || textContent === '') {
-      console.warn(`Unexpected node. Either 'nodeName' or 'textContent' is empty. Node:\n${childNode}`)
-    } else {
-      result[key] = textContent
-    }
-  })
-
-  return result
-}
-
 const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
   const keyName = node.localName
   if (keyName == null) {
@@ -174,14 +142,33 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
       console.warn(`Found a node without text or children! Ignoring.\n${node}`)
       return result
     }
-    // A simple node.
+    // A simple node. For example:
+    //   <Iptc4xmpExt:City>City 1</Iptc4xmpExt:City>
     result[keyName] = node.textContent
     return result
   }
 
   if (childNodes.length != 1) {
+    // Parses a list like this:
+    //   <Iptc4xmpExt:RegionBoundary rdf:parseType='Resource'>
+    //     <Iptc4xmpExt:rbShape>polygon</Iptc4xmpExt:rbShape>
+    //     <Iptc4xmpExt:rbUnit>relative</Iptc4xmpExt:rbUnit>
+    //     <Iptc4xmpExt:rbVertices>
+    //       <rdf:Seq>
+    //          ...
+    // The result will be:
+    //   {
+    //     RegionBoundary: {
+    //       rbShape: 'polygon'
+    //       rbUnit: 'relative'
+    //       rbVertics: [ ... ]
+    //     }
+    //   }
+    //
     if (node.getAttribute('rdf:parseType') === 'Resource' && node.childNodes.length > 0) {
-      result[keyName] = parseListOfNodes(node)
+      let parsedChildren = {}
+      childNodes.forEach((childNode) => (parsedChildren = parseNode(parsedChildren, childNode)))
+      result[keyName] = parsedChildren
       return result
     }
   } else {

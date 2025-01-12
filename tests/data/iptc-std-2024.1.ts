@@ -930,8 +930,20 @@ export const iptcStd2024Js = {
       RegionBoundary: {
         rbShape: 'polygon',
         rbUnit: 'relative',
-        rbVertices:
-          '                     0.05        0.713                      0.148        0.041                      0.375        0.863                  ',
+        rbVertices: [
+          {
+            rbX: '0.05',
+            rbY: '0.713',
+          },
+          {
+            rbX: '0.148',
+            rbY: '0.041',
+          },
+          {
+            rbX: '0.375',
+            rbY: '0.863',
+          },
+        ],
       },
       rCtype: [
         {
