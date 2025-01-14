@@ -5,7 +5,7 @@ import {
   NodeList as XMLDomNodeList,
 } from '@xmldom/xmldom'
 
-type XMPNode = string | Record<string, string> | { [k: string]: XMPNode } | Array<string> | Array<XMPNode>
+export type XMPNode = string | Record<string, string> | { [k: string]: XMPNode } | Array<string> | Array<XMPNode>
 
 export type XMP = Record<string, XMPNode>
 
@@ -92,35 +92,32 @@ const parseBagOrSeqNode = (node: Element | XMLDomElement): Array<XMPNode> => {
   // <rdf:li> tag represetns an item in a list. In the above example, there can be multiple <rdf:li>
   // tags with the similar content.
 
-  let result: Array<XMPNode> = []
+  const result: Array<XMPNode> = []
 
   filterElementNodes(node.childNodes).forEach((childNode) => {
     if (childNode.nodeName !== 'rdf:li') {
       console.warn(
         `Expected to see <rdf:li> node under <rdf:Bag> and <ref:Seq>, but found <${childNode.nodeName}>. Ignoring.`
       )
+    } else if (childNode.getAttribute('rdf:parseType') === 'Resource') {
+      let parsedLi = {}
+      filterElementNodes(childNode.childNodes).forEach((grandChild) => {
+        // Parsing the nodes inside the <rdf:li> node.
+        // eslint-disable-next-line no-use-before-define
+        parsedLi = parseNode(parsedLi, grandChild)
+      })
+      result.push(parsedLi)
     } else {
-      if (childNode.getAttribute('rdf:parseType') === 'Resource') {
-        let parsedLi = {}
-        filterElementNodes(childNode.childNodes).forEach((grandChild) => {
-          // Parsing the nodes inside the <rdf:li> node.
-          parsedLi = parseNode(parsedLi, grandChild)
-        })
-        result.push(parsedLi)
+      // It must be a simple 'li' node. For example:
+      //   <rdf:Bag>
+      //     <rdf:li>011232</rdf:li>
+      //     <rdf:li>012232</rdf:li>
+      //   </rdf:Bag>
+      const { textContent } = childNode
+      if (!textContent) {
+        console.warn(`Found a <rdf:li> node without text or 'rdf:parseType = Resource'. Ignoring. Node:\n${childNode}`)
       } else {
-        // It must be a simple 'li' node. For example:
-        //   <rdf:Bag>
-        //     <rdf:li>011232</rdf:li>
-        //     <rdf:li>012232</rdf:li>
-        //   </rdf:Bag>
-        const textContent = childNode.textContent
-        if (!textContent) {
-          console.warn(
-            `Found a <rdf:li> node without text or 'rdf:parseType = Resource'. Ignoring. Node:\n${childNode}`
-          )
-        } else {
-          result.push(textContent)
-        }
+        result.push(textContent)
       }
     }
   })
@@ -148,7 +145,7 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
     return result
   }
 
-  if (childNodes.length != 1) {
+  if (childNodes.length !== 1) {
     // Parses a list like this:
     //   <Iptc4xmpExt:RegionBoundary rdf:parseType='Resource'>
     //     <Iptc4xmpExt:rbShape>polygon</Iptc4xmpExt:rbShape>
@@ -167,7 +164,9 @@ const parseNode = (result: XMP, node: Element | XMLDomElement): XMP => {
     //
     if (node.getAttribute('rdf:parseType') === 'Resource' && node.childNodes.length > 0) {
       let parsedChildren = {}
-      childNodes.forEach((childNode) => (parsedChildren = parseNode(parsedChildren, childNode)))
+      childNodes.forEach((childNode) => {
+        parsedChildren = parseNode(parsedChildren, childNode)
+      })
       result[keyName] = parsedChildren
       return result
     }
@@ -210,7 +209,7 @@ export const parseXMP = (xmpStr: string) => {
 
   let result: XMP = {}
 
-  if (xmlDoc.childNodes[0].nodeType != xmlDoc.PROCESSING_INSTRUCTION_NODE) {
+  if (xmlDoc.childNodes[0].nodeType !== xmlDoc.PROCESSING_INSTRUCTION_NODE) {
     throw Error(
       `Expected the first node of the XMP to be an Instructional Node, but wasn't. Node: ${xmlDoc.childNodes[0]}`
     )

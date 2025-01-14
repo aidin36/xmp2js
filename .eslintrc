@@ -7,6 +7,12 @@
   "extends": ["airbnb", "airbnb/hooks", "prettier", "plugin:@typescript-eslint/recommended"],
   "rules": {
     "prettier/prettier": "error",
-    "eqeqeq": "smart",
+    "eqeqeq": ["error", "smart"],
+    // I disabled the ForOfStatement from AirBnB config. We need it to iterate over childNodes.
+    "no-restricted-syntax": ["error", "ForInStatement", "LabeledStatement", "WithStatement"],
+    "import/extensions": "off",
+    "import/no-unresolved": ["off"],
+    // In parseNode method we do this.
+    "no-param-reassign": "off",
   },
 }
