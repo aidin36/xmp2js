@@ -1,5 +1,5 @@
 {
-  "name": "xmp2js",
+  "name": "@aidin36/xmp2js",
   "version": "1.0.0",
   "description": "Converts XMP to JS Object, and vice versa.",
   "private": true,

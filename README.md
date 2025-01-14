@@ -11,7 +11,7 @@ Currently, it's tested and implemented based on IPTC standard. It should be able
 Using `npm`:
 
 ```bash
-npm install xmp2js
+npm install @aidin36/xmp2js
 ```
 
 ## API

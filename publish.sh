@@ -29,7 +29,7 @@ git tag "v""$VERSION"
 git push --tags
 
 echo "Publishing to npmjs..."
-cp README.md LICENSE dist/
+cp README.md LICENSE.md dist/
 grep -v private package.json > dist/package.json
 cd dist
 npm login
